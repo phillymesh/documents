@@ -1,6 +1,6 @@
 # phillymesh.net
 
-*This is based off of tomeshmesh's instructions located [here](https://github.com/tomesh/documents/blob/master/service_setup/wekan.md).
+*This is based off of tomeshmesh's instructions located [here](https://github.com/tomesh/documents/blob/master/service_setup/wekan.md).*
 
 We are self-hosting [phillymesh.net](https://phillymesh.net). This page describes how the server is set up
 

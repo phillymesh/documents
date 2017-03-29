@@ -1,6 +1,6 @@
 # phillymesh.net Kanban
 
-*This is based off of tomesh's instructions located [here](https://github.com/tomesh/documents/blob/master/service_setup/wekan.md).
+*This is based off of tomesh's instructions located [here](https://github.com/tomesh/documents/blob/master/service_setup/wekan.md).*
 
 We are self-hosting [Wekan](https://github.com/wekan/wekan) to coordinate tasks. This page describes how the Wekan server is set up.
 

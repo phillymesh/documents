@@ -1,6 +1,6 @@
 # phillymesh.net Chat
 
-*This is based off of tomesh's instructions located [here](https://github.com/phillymesh/documents/blob/master/service_setup/matrix.md).
+*This is based off of tomesh's instructions located [here](https://github.com/phillymesh/documents/blob/master/service_setup/matrix.md).*
 
 Philly Mesh is running a [Matrix](http://matrix.org) homeserver for our decentralized chat. The Matrix protocol allows us to communicate on the same homeserver, as well as reach users and rooms on other homeservers via homeserver federation. Users are free to connect to our homeserver with [any compatible desktop or mobile client](http://matrix.org/docs/projects/try-matrix-now.html#clients), or the web client we host.
 
@@ -53,7 +53,7 @@ We currently run the Python-implemented [Synapse](https://github.com/matrix-org/
 
 1. Enable registration for new users by changing `enable_registration` to `True` in **homeserver.yaml**.
 
-1. Enable guest access to public rooms by changing `allow_guest_access` to True` in **homeserver.yaml**.
+1. Enable guest access to public rooms by changing `allow_guest_access` to `True` in **homeserver.yaml**.
 
 1. Enable link preview by changing `url_preview_enabled` to `True` in **homeserver.yaml** and uncommenting:
 
