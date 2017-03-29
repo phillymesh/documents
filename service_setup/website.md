@@ -1,168 +1,272 @@
-# tomesh.net
+# phillymesh.net
 
-We are self-hosting [tomesh.net](https://tomesh.net). This page describes how the server is set up.
+*This is based off of tomeshmesh's instructions located [here](https://github.com/tomesh/documents/blob/master/service_setup/wekan.md).
 
-## Set Up Server
+We are self-hosting [phillymesh.net](https://phillymesh.net). This page describes how the server is set up
 
-1. Spin up a Virtual Machine (e.g. [DigitalOcean Droplet](http://digitalocean.com)) running **Ubuntu 16.04.1 x64**.
+## Set Up The Virtual Server
 
-1. Secure your server and create non-root user with `sudo` by following [these instructions](https://www.digitalocean.com/community/tutorials/initial-server-setup-with-ubuntu-16-04).
+1. Spin up a Virtual Machine (e.g. [RamNode VPS](https://ramnode.com)) running **Debian 8 Jessie x64**.
+
+1. Secure your server and create non-root user with `sudo` by following [these instructions](https://www.digitalocean.com/community/tutorials/initial-server-setup-with-ubuntu-14-04).
 
 1. Get a root shell by logging in and as non-root user, then run `sudo -i`.
 
-1. Enable **ufw** firewall:
+1. Enable **iptables** firewall by creating `/etc/iptables.rules`:
 
-  ```
-  # ufw allow ssh
-  # ufw allow www
-  # ufw enable
-  # ufw status
-  ```
+        ```
+        *filter
+        :INPUT ACCEPT [0:0]
+        :FORWARD ACCEPT [0:0]
+        :OUTPUT ACCEPT [46:5876]
+        -A INPUT -i lo -j ACCEPT
+        -A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+        -A INPUT -p tcp -m tcp --dport 22 -j ACCEPT
+        -A INPUT -p tcp -m tcp --dport 80 -j ACCEPT
+        -A INPUT -p tcp -m tcp --dport 443 -j ACCEPT
+        -A INPUT -j DROP
+        COMMIT
+        ```
 
-1. Point the `tomesh.net` DNS A (and AAAA for IPv6) record to `YOUR_SERVER_IP`.
+1. Enable **ip6tables** by creating `/etc/ip6tables-rules`:
 
-## Set up HTTPS with Nginx and Let's Encrypt
+        ```
+        *filter
+        :INPUT ACCEPT [0:0]
+        :FORWARD ACCEPT [0:0]
+        :OUTPUT ACCEPT [0:0]
+        -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+        -A INPUT -p ipv6-icmp -j ACCEPT
+        -A INPUT -i lo -j ACCEPT
+        -A INPUT -m conntrack --ctstate NEW -p tcp -m multiport --dports 22,80,443 -j ACCEPT
+        -A INPUT -j REJECT --reject-with icmp6-port-unreachable
+        -A FORWARD -j REJECT --reject-with icmp6-port-unreachable
+        COMMIT
+        ```
 
-Follow [these instructions](https://www.digitalocean.com/community/tutorials/how-to-secure-nginx-with-let-s-encrypt-on-ubuntu-16-04) to set up Nginx and Let's Encrypt.
+1. Reload the rules:
 
-### Configure Nginx
+        ```
+        # iptables-restore < /etc/iptables.rules
+        # ip6tables-restore < /etc/ip6tables.rules
+        ```
 
-1. Create `/etc/nginx/sites-available/tomesh.net`:
+1. Create DNS records (A,AAAA) for phillymesh.net using the IPv4 and IPv4 addresses of this box.
 
-  ```
-  server {
-    listen 80;
-    server_name tomesh.net www.tomesh.net;
-    return 301 https://$server_name$request_uri;
-  }
+## Install Apache, PHP, MariaDB
 
-  server {
-    listen 443 ssl http2 default_server;
-    listen [::]:443 ssl http2 default_server;
-    include snippets/ssl-tomesh.net.conf;
-    include snippets/ssl-params.conf;
-
-    root /var/www/tomesh.net/html;
-
-    error_page 404 /404/index.html;
-
-    location = /404 {
-      internal;
-    }
-
-    location / {
-      try_files $uri $uri/ =404;
-    }
-
-    location ~ /.well-known {
-      allow all;
-    }
-
-    location ~* \.(?:ttf|ttc|otf|eot|woff|woff2)$ {
-      expires 1M;
-      access_log off;
-    }
-  }
-  ```
-
-1. Symlink `/etc/nginx/sites-available/tomesh.net` to `/etc/nginx/sites-enabled`.
-
-1. Redirect unexpected access to website by overwriting `/etc/nginx/sites-available/default` with:
-
-  ```
-  server {
-    server_name .tomesh.net;
-    return 301 https://tomesh.net;
-  }
-  ```
-
-1. Check your configuration for syntax errors: `nginx -t`.
-
-1. Reload Nginx: `service nginx reload`.
-
-### Configure Let's Encrypt
-
-1. Generate a Diffie-Hellman `.pem` and add the path to `ssl_dhparam` in Nginx configurations.
-
-1. Run the `letsencrypt-auto` script:
-
-  ```
-  # /opt/letsencrypt/letsencrypt-auto certonly --agree-tos --renew-by-default --email hello@tomesh.net -a webroot --webroot-path=/var/www/html -d tomesh.net -d www.tomesh.net
-  ```
-
-1. In Nginx configurations, update `ssl_certificate`, `ssl_certificate_key`, `ssl_trusted_certificate` paths to the generated `.pem` files.
-
-1. Reload Nginx `service nginx reload`.
-
-1. Add the following to `crontab`:
-
-  ```
-  30 2 * * 1 /opt/letsencrypt/letsencrypt-auto renew >> /var/log/le-renew.log
-  35 2 * * 1 /bin/systemctl reload nginx
-  ```
-
-## Set up jekyll-hook and build script
-
-We use webhooks from Github to generate the Jekyll site on our server with [jekyll-hook](https://github.com/developmentseed/jekyll-hook).
-
-### Installing Jekyll
-
-Jekyll requires that Ruby 2.0 or above is installed. The latest release of Ruby 2.0 and [RVM](https://rvm.io/) can be installed with the following command:
+1. Make sure we have Apache 2 installed and run configtest.
 
 ```
-curl -L https://get.rvm.io | bash -s stable --ruby=2.4.0
+apt-get install apache2
+apache2ctl configtest
 ```
-Once Ruby is installed the Jekyll gem can be installed: `gem install jekyll`
 
-### Clone tomesh.net
+`configtest` will check to make sure a fully qualified domain name is configured. If not, it can be added to the apache config (https://www.digitalocean.com/community/tutorials/how-to-create-a-self-signed-ssl-certificate-for-apache-in-ubuntu-16-04)
 
-1. Clone tomesh.net reprository: `git clone https://github.com/tomeshnet/tomesh.net.git`
+```
+nano /etc/apache2/apache2.conf
+```
 
-1. `cd tomesh.net`
+At the bottom of the file, add a line like the following:
 
-1. `chmod +x script/tomesh-build.sh`
+```
+ServerName example.com
+```
 
-1. Note expected directory it will use to clone `master`.
+1. Now, we will want to make sure mysql is uninstalled and install mariadb in its place:
 
-### Set up jekyll-hook
+```
+apt-get remove mysql-server
+apt-get install mariadb-server mariadb-client
+```
 
-1. Install jekyll-hook's dependencies as [noted here](https://github.com/developmentseed/jekyll-hook#dependencies-installation).
+Next, we will go through the secure installation process:
 
-1. Clone jekyll-hook's repository (`/var/www/jekyll-hook`) and run `npm install`. [Noted here](https://github.com/developmentseed/jekyll-hook#installation)
+```
+mysql_secure_installation
+```
 
-1. Create a symbolic link to `tomesh-build.sh` in jekyll-hook's `scripts` directory:
+1. Now, to install php7 instead of php5, we have to update the sources list (http://unix.stackexchange.com/questions/252671/installing-php7-0-from-sid-on-jessie)
 
-  ```
-  ln -s ~/tomesh.net/scripts/tomesh-build.sh scripts/
-  ```
+```
+nano /etc/apt/sources.list
+```
 
-1. Edit jekyll-hook `config.json` to use `tomesh-build.sh` as the default publish script and allow webhooks from tomeshnet organization:
+Paste the following at the bottom:
 
-  ```
-  {
-      "gh_server": "github.com",
-      "temp": "/var/www/jekyll-hook",
-      "public_repo": true,
-      "scripts": {
-        "#default": {
-          "build": "./scripts/build.sh",
-          "publish": "./scripts/tomesh-build.sh"
-        }
-      },
-      "secret": "",
-      "email": {
-          "isActivated": false,
-          "user": "",
-          "password": "",
-          "host": "",
-          "ssl": true
-      },
-      "accounts": [
-          "tomeshnet"
-      ]
-  }
-  ```
+```
+deb http://packages.dotdeb.org jessie all
+```
 
-1. Launch in `jekyll-hook.js` in the background: `forever start jekyll-hook.js`. [Noted here](https://github.com/developmentseed/jekyll-hook#launch)
+After saving the file, we now need to add the gpg key from dotdeb.org, add it, and then update:
 
-1. Update UFW to allow TCP connections on port `8080`: `ufw allow 8080/tcp`.
+```
+wget https://www.dotdeb.org/dotdeb.gpg
+apt-key add dotdeb.gpg
+apt-get update
+```
+
+Now we can install php7 and related packages (https://www.howtoforge.com/tutorial/install-apache-with-php-and-mysql-on-ubuntu-16-04-lamp/):
+
+```
+apt-get -y install php7.0 libapache2-mod-php7.0 php7.0-mysql php7.0-curl php7.0-gd php7.0-intl php-pear php7.0-imap php7.0-mcrypt php7.0-pspell php7.0-recode php7.0-sqlite3 php7.0-tidy php7.0-xmlrpc php7.0-xsl php7.0-mbstring php-gettext
+```
+
+1. Before restarting apache, edit the config file to make sure AllowOverride is enabled for <Directory /> and <Directory /var/www/>. Change the blocks to look like this and then save:
+
+```
+nano /etc/apache2/apache2.conf
+```
+
+```
+<Directory />
+        Options FollowSymLinks
+        AllowOverride None
+        Require all denied
+</Directory>
+
+<Directory /usr/share>
+        AllowOverride None
+        Require all granted
+</Directory>
+
+<Directory /var/www/>
+        Options Indexes FollowSymLinks
+        AllowOverride All
+        Require all granted
+</Directory>
+
+#<Directory /srv/>
+#       Options Indexes FollowSymLinks
+#       AllowOverride None
+#       Require all granted
+#</Directory>
+
+```
+
+Now we restart apache:
+
+```
+systemctl restart apache2
+```
+
+## Configure the Apache Virtual Host
+
+1. Let's create a vhost file, `nano  nano /etc/apache2/sites-available/phillymesh.net.conf`
+
+```
+# Place any notes or comments you have here
+# It will make any customization easier to understand in the weeks to come
+
+# domain: phillymesh.net
+# public: /var/www/phillymesh.net/
+
+<VirtualHost *:80>
+
+  # Admin email, Server Name (domain name) and any aliases
+  ServerAdmin info@phillymesh.net
+  ServerName phillymesh.net
+  ServerAlias www.phillymesh.net
+
+
+  # Index file and Document Root (where the public files are located)
+  DirectoryIndex index.php
+  DocumentRoot /var/www/phillymesh.net/public
+
+
+  # Custom log file locations
+  LogLevel warn
+  ErrorLog  /var/www/phillymesh.net/log/error.log
+  CustomLog /var/www/phillymesh.net/log/access.log combined
+</VirtualHost>
+```
+
+1. Link the file to `sites-enabled` via `ln -s /etc/apache2/sites-available/phillymesh.net.conf /etc/apache2/sites-enabled`.
+
+1. Restart apache via `systemctl restart apache2`.
+
+
+## Getting a TLS cert with Let's Encrypt
+
+1. Now, let's get the Let's Encrypt client up and running (https://www.digitalocean.com/community/tutorials/how-to-set-up-let-s-encrypt-certificates-for-multiple-apache-virtual-hosts-on-ubuntu-14-04):
+
+```
+cd /usr/local/sbin
+wget https://dl.eff.org/certbot-auto
+chmod a+x /usr/local/sbin/certbot-auto
+```
+
+Make sure that the A record(s) for the domain point to the ip address of the server.
+
+1. Certificates for domains and subdomains can be generated easily:
+
+```
+certbot-auto --apache -d phillymesh.net -d www.phillymesh.net
+```
+
+All generated certificates are available in `/etc/letsencrypt/live` and Apache has automatically been updated and restarted.
+
+1. Now, let's make sure these certificates are automatically renewed before the expire:
+
+```
+crontab -e
+```
+
+In the bottom of the crontab, paste the following line for a task that runs every monday at 2:30 AM:
+
+```
+30 2 * * 1 /usr/local/sbin/certbot-auto renew >> /var/log/le-renew.log
+```
+
+1. Finally, we need to make sure that the vhost configuration is done properly. 
+
+```
+cd /etc/apache2/sites-available
+mv example.com.conf example.com-le.conf
+cd ../sites-enabled
+ln -s ../sites-available/example.com-le.conf example.com-le.conf
+systemctl restart apache2
+```
+
+## Set up the Wordpress Database
+
+1. We are using MariaDB, so let's dip down into the console with `mysql -uroot -p`.
+
+2. Now we need to run a few commands to create the table, and grant it access to our urser;
+
+```
+MariaDB [(none)]> CREATE DATABASE phillymesh_net_blog
+MariaDB [(none)]> GRANT ALL PRIVILEGES ON phillymesh_net_blog.* TO "phillymesh"@"127.0.0.1" IDENTIFIED BY "PASSWORDHERE";
+MariaDB [(none)]> FLUSH PRIVILEGES;
+```
+
+Then quit the console with `exit`.
+
+## Install Wordpress
+
+1. First we need to create some directories in `/var/www`.
+
+```
+mkdir -p /var/www/phillymesh.net/{cgi-bin,log,private}
+```
+
+1. Change into the phillymesh.net directory with `cd /var/www/phillymesh.net`.
+
+1. Download and unpack the latest wordpress release:
+
+```
+wget https://wordpress.org/latest.tar.gz
+tar -xzf latest.tar.gz
+mv wordpress/ public
+```
+
+1. Now let's give permission of our new site back to Apache;
+
+```
+chown -R www-data:www-data /var/www/phillymesh.net/
+```
+
+## Finish Wordpress Installation
+
+1. Navigate to https://phillymesh.net to complete the installation, using the database details created earlier to link wordpress to our db.

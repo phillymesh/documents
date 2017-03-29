@@ -1,72 +1,117 @@
-# tomesh.net Kanban
+# phillymesh.net Kanban
+
+*This is based off of tomesh's instructions located [here](https://github.com/tomesh/documents/blob/master/service_setup/wekan.md).
 
 We are self-hosting [Wekan](https://github.com/wekan/wekan) to coordinate tasks. This page describes how the Wekan server is set up.
 
 ## Set Up Wekan Server
 
-1. Spin up a Virtual Machine (e.g. [DigitalOcean Droplet](http://digitalocean.com)) running **Ubuntu 14.04.4 x64**.
+1. Spin up a Virtual Machine (e.g. [Vultr VPS](https://www.vultr.com/)) running **Debian 8 Jessie x64**.
 
 1. Secure your server and create non-root user with `sudo` by following [these instructions](https://www.digitalocean.com/community/tutorials/initial-server-setup-with-ubuntu-14-04).
 
 1. Get a root shell by logging in and as non-root user, then run `sudo -i`.
 
-1. Enable **ufw** firewall:
+1. Enable **iptables** firewall by creating `/etc/iptables.rules`:
 
 	```
-	# ufw allow ssh
-	# ufw allow www
-	# ufw enable
-	# ufw status
+        *filter
+        :INPUT ACCEPT [0:0]
+        :FORWARD ACCEPT [0:0]
+        :OUTPUT ACCEPT [46:5876]
+        -A INPUT -i lo -j ACCEPT
+        -A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+        -A INPUT -p tcp -m tcp --dport 22 -j ACCEPT
+        -A INPUT -p tcp -m tcp --dport 80 -j ACCEPT
+        -A INPUT -p tcp -m tcp --dport 443 -j ACCEPT
+        -A INPUT -j DROP
+        COMMIT
 	```
 
-1. Install Wekan with the [auto-install script](https://raw.githubusercontent.com/tomeshnet/wekan/v0.10.1/autoinstall_wekan.sh) we forked from [anselal/wekan](https://github.com/anselal/wekan/) and reboot:
+1. Enable **ip6tables** by creating `/etc/ip6tables-rules`:
+
+        ```
+        *filter
+        :INPUT ACCEPT [0:0]
+        :FORWARD ACCEPT [0:0]
+        :OUTPUT ACCEPT [0:0]
+        -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+        -A INPUT -p ipv6-icmp -j ACCEPT
+        -A INPUT -i lo -j ACCEPT
+        -A INPUT -m conntrack --ctstate NEW -p tcp -m multiport --dports 22,80,443 -j ACCEPT
+        -A INPUT -j REJECT --reject-with icmp6-port-unreachable
+        -A FORWARD -j REJECT --reject-with icmp6-port-unreachable
+        COMMIT
+        ```
+
+1. Reload the rules:
+
+        ```
+        # iptables-restore < /etc/iptables.rules
+        # ip6tables-restore < /etc/ip6tables.rules
+        ```
+
+1. Install Wekan with the [auto-install script](https://github.com/wekan/wekan-autoinstall/blob/master/autoinstall_wekan.sh):
 
 	```
-	# wget https://raw.githubusercontent.com/tomeshnet/wekan/v0.10.1/autoinstall_wekan.sh
+	# wget https://github.com/wekan/wekan-autoinstall/blob/master/autoinstall_wekan.sh
 	# chmod +x autoinstall_wekan.sh
 	# ./autoinstall_wekan.sh
 	```
 
-	Confirm Wekan is running on **http://YOUR_SERVER_IP:8080**
+	Confirm Wekan is running on **http://YOUR_SERVER_IP:8080** if you have the port open. If you feel like risking it, continue to where we create the reverse proxy with nginx.
 
-1. Point the `wekan.tomesh.net` DNS A (and AAAA for IPv6) record to `YOUR_SERVER_IP`.
-
-1. In **/etc/init.d/wekan**, change `ROOT_URL` and `PORT` to:
-
-	```
-	export ROOT_URL="http://wekan.tomesh.net"
-	export PORT="80"
-	```
-
-1. Update the auto-start script and reboot:
-
-	```
-	# update-rc.d -f wekan remove && update-rc.d wekan defaults
-	# reboot
-	```
-
- 	Find Wekan on [http://wekan.tomesh.net](http://wekan.tomesh.net).
+1. Point the `wekan.phillymesh.net` DNS A (and AAAA for IPv6) record to `YOUR_SERVER_IP`.
 
 ## Set up HTTPS with nginx and letsencrypt
-
-1. Allow HTTPS traffic through firewall `ufw allow 443/tcp`.
-
-1. Find process number of the Wekan server using `forever list`, then turn it off with `forever stop WEKAN_PROCESS_NO`.
-
-1. In **/etc/init.d/wekan**, change `ROOT_URL` and `PORT` to:
-
-	```
-	export ROOT_URL="https://wekan.tomesh.net"
-	export PORT="8080"
-	```
-
-1. Start Wekan server again `/etc/init.d/wekan start`.
 
 1. Follow [these instructions](https://www.digitalocean.com/community/tutorials/how-to-secure-nginx-with-let-s-encrypt-on-ubuntu-14-04) to set up nginx and letsencrypt.
 
 ### Configure nginx
 
-1. Create **/etc/nginx/sites-available/wekan.tomesh.net**:
+1. Create **/etc/nginx/sites-available/wekan.phillymesh.net**:
+
+    ```
+    server {
+        listen 80;
+        server_name wekan.phillymesh.net;
+
+        location ~ /.well-known {
+          allow all;
+          root /usr/share/nginx/html;
+        }
+    }
+    ```
+
+1. Symlink **/etc/nginx/sites-available/wekan.phillymesh.net** to **/etc/nginx/sites-enabled**.
+
+1. Redirect unexpected access to website by overwriting `/etc/nginx/sites-available/default` with:
+
+  ```
+  server {
+    server_name .phillymesh.net;
+    return 301 https://phillymesh.net;
+  }
+  ```
+
+1. Reload nginx `service nginx reload`.
+
+### Configure letsencrypt
+
+1. Generate a Deffie-Hellman **.pem** and add the path to `ssl_dhparam` in nginx configurations.
+
+1. Run the **letsencrypt-auto** script:
+
+        ```
+        # certbot-auto certonly --agree-tos --renew-by-default --email hello@phillymesh.net -a webroot --webroot-path=/usr/share/nginx/html -d wekan.phillymesh.net
+        ```
+
+1. After the cert is created, generate dhparem.pem if it doesn't exit
+        ```
+        openssl dhparam -out /etc/ssl/certs/dhparam.pem;
+        ```
+
+1. Lastly let's change our config to get it SSL forced by editing `/etc/nginx/sites-available/wekan.phillymesh.net` and pasting:
 
     ```
     upstream backend {
@@ -75,7 +120,7 @@ We are self-hosting [Wekan](https://github.com/wekan/wekan) to coordinate tasks.
 
     server {
         listen 80;
-        server_name wekan.tomesh.net;
+        server_name wekan.phillymesh.net;
 
         # Add headers to serve security related headers
         add_header X-Content-Type-Options nosniff;
@@ -108,11 +153,11 @@ We are self-hosting [Wekan](https://github.com/wekan/wekan) to coordinate tasks.
 
     server {
         listen 443 ssl;
-        server_name wekan.tomesh.net;
+        server_name wekan.phillymesh.net;
 
-        ssl_certificate /etc/letsencrypt/live/wekan.tomesh.net/fullchain.pem;
-        ssl_certificate_key /etc/letsencrypt/live/wekan.tomesh.net/privkey.pem;
-        ssl_trusted_certificate /etc/letsencrypt/live/wekan.tomesh.net/fullchain.pem;
+        ssl_certificate /etc/letsencrypt/live/wekan.phillymesh.net/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/wekan.phillymesh.net/privkey.pem;
+        ssl_trusted_certificate /etc/letsencrypt/live/wekan.phillymesh.net/fullchain.pem;
 
         ssl_session_timeout 1d;
         ssl_session_cache shared:SSL:50m;
@@ -163,31 +208,6 @@ We are self-hosting [Wekan](https://github.com/wekan/wekan) to coordinate tasks.
     }
     ```
 
-1. Symlink **/etc/nginx/sites-available/wekan.tomesh.net** to **/etc/nginx/sites-enabled**.
-
-1. Redirect unexpected access to website by overwriting `/etc/nginx/sites-available/default` with:
-
-  ```
-  server {
-    server_name .tomesh.net;
-    return 301 https://tomesh.net;
-  }
-  ```
-
-1. Reload nginx `service nginx reload`.
-
-### Configure letsencrypt
-
-1. Generate a Deffie-Hellman **.pem** and add the path to `ssl_dhparam` in nginx configurations.
-
-1. Run the **letsencrypt-auto** script:
-
-	```
-	# /opt/letsencrypt/letsencrypt-auto certonly --agree-tos --renew-by-default --email hello@tomesh.net -a webroot --webroot-path=/usr/share/nginx/html -d wekan.tomesh.net
-	```
-
-1. In nginx configurations, update `ssl_certificate`, `ssl_certificate_key`, `ssl_trusted_certificate` paths to the generated **.pem** files.
-
 1. Reload nginx `service nginx reload`.
 
 1. Add the following to **crontab**:
@@ -201,13 +221,11 @@ We are self-hosting [Wekan](https://github.com/wekan/wekan) to coordinate tasks.
 
 1. Stop the Wekan server `forever stop WEKAN_PROCESS_NO`.
 
-1. Allow SMTP traffic through firewall `ufw allow 587`.
-
-1. In **/etc/init.d/wekan**, change `MAIL_URL` to mail server SMTP settings and add `MAIL_FROM`:
+1. In **/etc/init.d/wekan**, change `MAIL_URL` to mail server SMTP settings and add `MAIL_FROM` using our Zoho email service:
 
 	```
-	export MAIL_URL='smtp://noreply@tomesh.net:PASSWORD@mail.seattlemesh.net:587/'
-	export MAIL_FROM='noreply@tomesh.net'
+	export MAIL_URL='smtp://noreply@phillymesh.net:PASSWORD@smtp.zoho.com:587/'
+	export MAIL_FROM='noreply@phillymesh.net'
 	```
 
 1. Start Wekan server again `/etc/init.d/wekan start`.

@@ -1,18 +1,23 @@
-# tomesh.net Chat
+# phillymesh.net Chat
 
-Toronto Mesh is running a [Matrix](http://matrix.org) homeserver for our decentralized chat. The Matrix protocol allows us to communicate on the same homeserver, as well as reach users and rooms on other homeservers via homeserver federation. Users are free to connect to our homeserver with [any compatible desktop or mobile client](http://matrix.org/docs/projects/try-matrix-now.html#clients), or the web client we host.
+*This is based off of tomesh's instructions located [here](https://github.com/phillymesh/documents/blob/master/service_setup/matrix.md).
 
-**Matrix homeserver**: [https://matrix.tomesh.net](https://matrix.tomesh.net)
+Philly Mesh is running a [Matrix](http://matrix.org) homeserver for our decentralized chat. The Matrix protocol allows us to communicate on the same homeserver, as well as reach users and rooms on other homeservers via homeserver federation. Users are free to connect to our homeserver with [any compatible desktop or mobile client](http://matrix.org/docs/projects/try-matrix-now.html#clients), or the web client we host.
 
-**Web client**: [https://chat.tomesh.net](https://chat.tomesh.net)
+**Matrix homeserver**: [https://matrix.phillymesh.net](https://matrix.phillymesh.net)
+
+**Web client**: [https://chat.phillymesh.net](https://chat.phillymesh.net)
 
 This page describes how both these components are set up.
 
 ## Set Up Matrix Homeserver
 
-We currently run the Python-implemented [Synapse](https://github.com/matrix-org/synapse/) homeserver at **matrix.tomesh.net**.
+We currently run the Python-implemented [Synapse](https://github.com/matrix-org/synapse/) homeserver at **matrix.phillymesh.net**.
 
 ### Install Synapse Homeserver
+
+*Note (2017-03-27): I attempted to install synapse through apt-get but there were a few dependencies that were outdated in Debian's repos. I thought it would be easier to keep everything updated in one place via the below instructions instead of managing different installation methods.*
+
 
 1. Get a root shell with `sudo -i`.
 
@@ -24,13 +29,13 @@ We currently run the Python-implemented [Synapse](https://github.com/matrix-org/
 	                     libssl-dev python-virtualenv libjpeg-dev libxslt1-dev
 	```
 
-1. Install Synapse homeserver version [v0.19.2](https://github.com/matrix-org/synapse/releases/tag/v0.19.2):
+1. Install Synapse homeserver version [v0.19.3](https://github.com/matrix-org/synapse/releases/tag/v0.19.3):
 
 	```
 	# virtualenv -p python2.7 ~/.synapse
 	# source ~/.synapse/bin/activate
 	# pip install --upgrade setuptools
-	# pip install https://github.com/matrix-org/synapse/tarball/v0.19.2
+	# pip install https://github.com/matrix-org/synapse/tarball/v0.19.3
 	```
 
 	>From now on, each time you want to configure the server, run `cd ~/.synapse && source ./bin/activate` from a root shell.
@@ -40,7 +45,7 @@ We currently run the Python-implemented [Synapse](https://github.com/matrix-org/
 	```
 	# cd ~/.synapse
 	# python -m synapse.app.homeserver \
-	    --server-name tomesh.net \
+	    --server-name phillymesh.net \
 	    --config-path homeserver.yaml \
 	    --generate-config \
 	    --report-stats=no
@@ -68,11 +73,13 @@ We currently run the Python-implemented [Synapse](https://github.com/matrix-org/
 	echo "synctl_cache_factor: 0.02" >> homeserver.yaml
 	```
 
-1. Synapse keeps a lot of logs by default. Open up **tomesh.net.log.config**, find `handlers:file:backupCount` and change the value to `1`.
+1. Synapse keeps a lot of logs by default. Open up **phillymesh.net.log.config**, find `handlers:file:backupCount` and change the value to `1`.
 
 1. Start the server with `synctl start`.
 
 	>If you want to stop the server at some point, run `synctl stop`.
+
+1. We do want to stop it because we will be switching the database to postgres, so stop it now with `synctl stop`.
 
 ### Set Up Federation
 
@@ -88,22 +95,57 @@ We currently run the Python-implemented [Synapse](https://github.com/matrix-org/
 1. Create a SRV record and publish it in DNS:
 
 	```
-	$ dig -t srv _matrix._tcp.tomesh.net
-	_matrix._tcp    IN      SRV     10 0 8448 matrix.tomesh.net.
+	$ dig -t srv _matrix._tcp.phillymesh.net
+	_matrix._tcp    IN      SRV     10 0 8448 matrix.phillymesh.net.
 	```
 
-1. Open up firewall for federation over port 8448 `ufw allow 8448`.
+1. Open up firewall for federation over port 8448 `iptables -A INPUT -p tcp -m tcp --dport 8448 -j ACCEPT`.
 
 ### Set up HTTPS with nginx and letsencrypt
 
-1. If nginx and letsencrypt aren't already installed on the server, see [our Wekan setup](https://github.com/tomeshnet/documents/blob/master/service_setup/wekan.md) to configure the basics.
+1. If nginx and letsencrypt aren't already installed on the server, see [our Wekan setup](wekan.md) to configure the basics.
 
-1. Create **/etc/nginx/sites-available/matrix.tomesh.net**:
+1. Create **/etc/nginx/sites-available/matrix.phillymesh.net**:
 
     ```
     server {
         listen 80;
-        server_name matrix.tomesh.net;
+        server_name matrix.phillymesh.net;
+
+        location ~ /.well-known {
+          allow all;
+          root /usr/share/nginx/html;
+        }
+    }
+    ```
+
+This is just temportary to appease the let's encrypt gods.
+
+1. Start serving the site by symlinking:
+
+        ```
+        ln -s /etc/nginx/sites-available/matrix.phillymesh.net /etc/nginx/sites-enabled/matrix.phillymesh.net
+        ```
+1. Reload nginx `service nginx reload`.
+
+1. Assuming Diffie-Hellman **.pem** and **crontab** for letsencrypt renewals are already configured, just run:
+
+        ```
+        # certbot-auto certonly --agree-tos --renew-by-default --email hello@phillymesh.net -a webroot --webroot-path=/usr/share/nginx/html -d matrix.phillymesh.net
+        ```
+
+1. After the cert is created, generate dhparem.pem if it doesn't exit
+        ```
+        openssl dhparam -out /etc/ssl/certs/dhparam.pem;
+        ```
+
+1. Lastly let's change our config to get it SSL forced by editing `/etc/nginx/sites-available/matrix.phillymesh.net` and pasting:
+
+    
+    ```
+    server {
+        listen 80;
+        server_name matrix.phillymesh.net;
         return 301 https://$host$request_uri;
 
         location ~ /.well-known {
@@ -112,13 +154,14 @@ We currently run the Python-implemented [Synapse](https://github.com/matrix-org/
         }
     }
 
+
     server {
         listen 443 ssl;
-        server_name matrix.tomesh.net;
+        server_name matrix.phillymesh.net;
 
-        ssl_certificate /etc/letsencrypt/live/matrix.tomesh.net/fullchain.pem;
-        ssl_certificate_key /etc/letsencrypt/live/matrix.tomesh.net/privkey.pem;
-        ssl_trusted_certificate /etc/letsencrypt/live/matrix.tomesh.net/fullchain.pem;
+        ssl_certificate /etc/letsencrypt/live/matrix.phillymesh.net/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/matrix.phillymesh.net/privkey.pem;
+        ssl_trusted_certificate /etc/letsencrypt/live/matrix.phillymesh.net/fullchain.pem;
 
         ssl_session_timeout 1d;
         ssl_session_cache shared:SSL:50m;
@@ -169,20 +212,9 @@ We currently run the Python-implemented [Synapse](https://github.com/matrix-org/
     }
     ```
 
-1. Start serving the site by symlinking:
-
-	```
-	ln -s /etc/nginx/sites-available/matrix.tomesh.net /etc/nginx/sites-enabled/matrix.tomesh.net
-	```
 1. Reload nginx `service nginx reload`.
 
-1. Assuming Diffie-Hellman **.pem** and **crontab** for letsencrypt renewals are already configured, just run:
-
-	```
-	# /opt/letsencrypt/letsencrypt-auto certonly --agree-tos --renew-by-default --email hello@tomesh.net -a webroot --webroot-path=/usr/share/nginx/html -d matrix.tomesh.net
-	```
-
-### Update Synapse Version
+### Update Synapse Version (When Needed)
 
 1. Enter the virtualenv from a root shell:
 
@@ -200,9 +232,54 @@ We currently run the Python-implemented [Synapse](https://github.com/matrix-org/
 
 1. Start the Synapse server again with `synctl start`.
 
+### Use PostgresSQL for New Installation
+
+Because we haven't touched the server yet, moving to PostgresSQL is relatively simple.
+
+1. [Install PostgreSQL](https://www.digitalocean.com/community/tutorials/how-to-install-and-use-postgresql-on-ubuntu-14-04) on the VM and [verify its security settings](https://www.digitalocean.com/community/tutorials/how-to-secure-postgresql-on-an-ubuntu-vps).
+
+1. Follow the first steps of the [migration instructions]. At the time of writing, we will perform the below.
+
+1. From the `postgres` user account, create a user `syanpse` by running the command `createuser --interactive`.
+
+1. Enter the console with `psql` and create the database using UTF8 encoding. (When done, exit the console with `\q`)
+
+ ```
+ CREATE DATABASE synapse
+  ENCODING 'UTF8'
+  LC_COLLATE='C'
+  LC_CTYPE='C'
+  template=template0
+  OWNER synapse_user;
+ ```
+
+1. Install the client in the virtual env:
+ 
+    ```
+    sudo apt-get install libpq-dev
+    pip install psycopg2
+    ```
+
+1. Replace the `database` section in **homeserver.yaml** with:
+
+        ```
+        # Postgres database configuration
+        database:
+            name: psycopg2
+            args:
+                user: synapse_user
+                password: PASSWORD
+                database: synapse
+                host: localhost
+                cp_min: 5
+                cp_max: 10
+        ```
+
+1. Restart synapse by running `synctl start`.
+
 ### Migrate Database to PostgreSQL
 
-At some point we migrated our SQLite database to PostgreSQL for better performance:
+If you have already been running with SQLite, you can migrated to PostgreSQL for better performance:
 
 1. Back up a snapshot of the VM, and then copy the Synapse files, including the SQLite database, to another directory.
 
@@ -227,29 +304,29 @@ At some point we migrated our SQLite database to PostgreSQL for better performan
 
 ## Set Up Riot Web Client
 
-The web client we host at **chat.tomesh.net** is running [Riot Web](https://github.com/vector-im/riot-web), and defaults to use our Matrix homeserver.
+The web client we host at **chat.phillymesh.net** is running [Riot Web](https://github.com/vector-im/riot-web), and defaults to use our Matrix homeserver.
 
-### Serve Riot Web at chat.tomesh.net
+### Serve Riot Web at chat.phillymesh.net
 
 1. Get a root shell with `sudo -i`.
 
 1. Download the pre-compiled [Riot Web release](https://github.com/vector-im/riot-web/releases):
 
 	```
-	# wget https://github.com/vector-im/riot-web/releases/download/v0.9.5/vector-v0.9.5.tar.gz
+	# wget https://github.com/vector-im/riot-web/releases/download/v0.9.7/vector-v0.9.7.tar.gz
 	```
 
-1. Extract **vector-v0.9.5.tar.gz** into **/var/www/chat.tomesh.net/public**:
+1. Extract **vector-v0.9.7.tar.gz** into **/var/www/chat.phillymesh.net/public**:
 
 	```
-	# tar xf vector-v0.9.5.tar.gz -C /var/www/chat.tomesh.net/public --strip-components 1
+	# tar xf vector-v0.9.7.tar.gz -C /var/www/chat.phillymesh.net/public --strip-components 1
 	```
 
 1. Create **config.json** with the following lines, so it is used in place of the default **config.sample.json**:
 
 	```
 	{
-	    "default_hs_url": "https://matrix.tomesh.net",
+	    "default_hs_url": "https://matrix.phillymesh.net",
 	    "default_is_url": "https://vector.im",
 	    "brand": "Riot",
 	    "integrations_ui_url": "https://scalar.vector.im/",
@@ -257,7 +334,8 @@ The web client we host at **chat.tomesh.net** is running [Riot Web](https://gith
 	    "enableLabs": true,
 	    "roomDirectory": {
 	        "servers": [
-	            "tomesh.net",
+                    "phillymesh.net",
+	            "phillymesh.net",
 	            "nycmesh.net",
 	            "matrix.org"
 	        ]
@@ -269,27 +347,56 @@ The web client we host at **chat.tomesh.net** is running [Riot Web](https://gith
 
 ### Set up HTTPS with nginx and letsencrypt
 
-1. If nginx and letsencrypt aren't already installed on the server, see [our Wekan setup](https://github.com/tomeshnet/documents/blob/master/service_setup/wekan.md) to configure the basics.
+1. If nginx and letsencrypt aren't already installed on the server, see [our Wekan setup](wekan.md) to configure the basics.
 
-1. Create **/etc/nginx/sites-available/chat.tomesh.net**:
+1. Create **/etc/nginx/sites-available/phillymesh.phillymesh.net**:
 
 	```
+        server {
+            listen 80;
+            server_name chat.phillymesh.net;
+            return 301 https://$host$request_uri;
+        }
+        ```
+
+1. Start serving the site by symlinking:
+
+        ```
+        ln -s /etc/nginx/sites-available/chat.phillymesh.net /etc/nginx/sites-enabled/chat.phillymesh.net
+        ```
+
+1. Reload nginx `service nginx reload`.
+
+1. Assuming Diffie-Hellman **.pem** and **crontab** for letsencrypt renewals are already configured, just run:
+
+        ```
+        # certbott-auto certonly --agree-tos --renew-by-default --email hello@phillymesh.net -a webroot --webroot-path=/usr/share/nginx/html -d chat.phillymesh.net
+        ```
+
+1. After the cert is created, generate dhparem.pem if it doesn't exit
+        ```
+        openssl dhparam -out /etc/ssl/certs/dhparam.pem;
+        ```
+
+1. Lastly let's change our config to get it SSL forced by editing `/etc/nginx/sites-available/matrix.phillymesh.net` and pasting:
+
+        ```
 	server {
 	    listen 80;
-	    server_name chat.tomesh.net;
+	    server_name chat.phillymesh.net;
 	    return 301 https://$host$request_uri;
 	}
 
 	server {
 	    listen 443 ssl;
-	    server_name chat.tomesh.net;
+	    server_name chat.phillymesh.net;
 
-	    root /var/www/chat.tomesh.net/public;
+	    root /var/www/chat.phillymesh.net/public;
 	    index index.html index.htm;
 
-	    ssl_certificate /etc/letsencrypt/live/chat.tomesh.net/fullchain.pem;
-	    ssl_certificate_key /etc/letsencrypt/live/chat.tomesh.net/privkey.pem;
-	    ssl_trusted_certificate /etc/letsencrypt/live/chat.tomesh.net/fullchain.pem;
+	    ssl_certificate /etc/letsencrypt/live/chat.phillymesh.net/fullchain.pem;
+	    ssl_certificate_key /etc/letsencrypt/live/chat.phillymesh.net/privkey.pem;
+	    ssl_trusted_certificate /etc/letsencrypt/live/chat.phillymesh.net/fullchain.pem;
 
 	    ssl_session_timeout 1d;
 	    ssl_session_cache shared:SSL:50m;
@@ -327,7 +434,7 @@ The web client we host at **chat.tomesh.net** is running [Riot Web](https://gith
 1. Start serving the site by symlinking:
 
 	```
-	ln -s /etc/nginx/sites-available/chat.tomesh.net /etc/nginx/sites-enabled/chat.tomesh.net
+	ln -s /etc/nginx/sites-available/chat.phillymesh.net /etc/nginx/sites-enabled/chat.phillymesh.net
 	```
 
 1. Reload nginx `service nginx reload`.
@@ -335,8 +442,10 @@ The web client we host at **chat.tomesh.net** is running [Riot Web](https://gith
 1. Assuming Diffie-Hellman **.pem** and **crontab** for letsencrypt renewals are already configured, just run:
 
 	```
-	# /opt/letsencrypt/letsencrypt-auto certonly --agree-tos --renew-by-default --email hello@tomesh.net -a webroot --webroot-path=/usr/share/nginx/html -d chat.tomesh.net
+	# /opt/letsencrypt/letsencrypt-auto certonly --agree-tos --renew-by-default --email hello@phillymesh.net -a webroot --webroot-path=/usr/share/nginx/html -d chat.phillymesh.net
 	```
+
+1. Reload nginx `service nginx reload`.
 	
 ## Create More RAM
 
