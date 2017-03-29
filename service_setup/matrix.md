@@ -18,7 +18,6 @@ We currently run the Python-implemented [Synapse](https://github.com/matrix-org/
 
 *Note (2017-03-27): I attempted to install synapse through apt-get but there were a few dependencies that were outdated in Debian's repos. I thought it would be easier to keep everything updated in one place via the below instructions instead of managing different installation methods.*
 
-
 1. Get a root shell with `sudo -i`.
 
 1. Install the tools:
