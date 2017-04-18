@@ -1,4 +1,4 @@
-# phillymesh.net Monitoring - Node Explorer
+# phillymesh.net Monitoring - Node Exporter
 
 Philly Mesh is running a monitoring suite composed of several pieces of software. This document covers the installation of [node-exporter](https://github.com/prometheus/node_exporter), an exporter for machine metrics. node-exporter is designed to be used along with [Prometheus](https://prometheus.io/), an open-source monitoring system. 
 

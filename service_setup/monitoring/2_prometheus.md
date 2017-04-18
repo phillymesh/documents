@@ -41,7 +41,7 @@ Philly Mesh is running a monitoring suite composed of several pieces of software
 	# nohup ./prometheus > prometheus.log 2>&1 &
 	```
 
-	**node-exporter** will start listening on port 9090, on all interfaces. 
+	**Prometheus** will start listening on port 9090, on all interfaces. 
 
 	Your Prometheus server provides a basic web interface. In your browser, you can navigate to [http://localhost:9090/targets](http://localhost:9090/targets) to view the status of the nodes you are tracking.
 
