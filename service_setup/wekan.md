@@ -14,42 +14,42 @@ We are self-hosting [Wekan](https://github.com/wekan/wekan) to coordinate tasks.
 
 1. Enable **iptables** firewall by creating `/etc/iptables.rules`:
 
-	```
-        *filter
-        :INPUT ACCEPT [0:0]
-        :FORWARD ACCEPT [0:0]
-        :OUTPUT ACCEPT [46:5876]
-        -A INPUT -i lo -j ACCEPT
-        -A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
-        -A INPUT -p tcp -m tcp --dport 22 -j ACCEPT
-        -A INPUT -p tcp -m tcp --dport 80 -j ACCEPT
-        -A INPUT -p tcp -m tcp --dport 443 -j ACCEPT
-        -A INPUT -j DROP
-        COMMIT
+    ```
+	*filter
+	:INPUT ACCEPT [0:0]
+	:FORWARD ACCEPT [0:0]
+	:OUTPUT ACCEPT [46:5876]
+	-A INPUT -i lo -j ACCEPT
+	-A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+	-A INPUT -p tcp -m tcp --dport 22 -j ACCEPT
+	-A INPUT -p tcp -m tcp --dport 80 -j ACCEPT
+	-A INPUT -p tcp -m tcp --dport 443 -j ACCEPT
+	-A INPUT -j DROP
+	COMMIT
 	```
 
 1. Enable **ip6tables** by creating `/etc/ip6tables-rules`:
 
-        ```
-        *filter
-        :INPUT ACCEPT [0:0]
-        :FORWARD ACCEPT [0:0]
-        :OUTPUT ACCEPT [0:0]
-        -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-        -A INPUT -p ipv6-icmp -j ACCEPT
-        -A INPUT -i lo -j ACCEPT
-        -A INPUT -m conntrack --ctstate NEW -p tcp -m multiport --dports 22,80,443 -j ACCEPT
-        -A INPUT -j REJECT --reject-with icmp6-port-unreachable
-        -A FORWARD -j REJECT --reject-with icmp6-port-unreachable
-        COMMIT
-        ```
+	```
+	*filter
+	:INPUT ACCEPT [0:0]
+	:FORWARD ACCEPT [0:0]
+	:OUTPUT ACCEPT [0:0]
+	-A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+	-A INPUT -p ipv6-icmp -j ACCEPT
+	-A INPUT -i lo -j ACCEPT
+	-A INPUT -m conntrack --ctstate NEW -p tcp -m multiport --dports 22,80,443 -j ACCEPT
+	-A INPUT -j REJECT --reject-with icmp6-port-unreachable
+	-A FORWARD -j REJECT --reject-with icmp6-port-unreachable
+	COMMIT
+	```
 
 1. Reload the rules:
 
-        ```
-        # iptables-restore < /etc/iptables.rules
-        # ip6tables-restore < /etc/ip6tables.rules
-        ```
+	```
+	# iptables-restore < /etc/iptables.rules
+	# ip6tables-restore < /etc/ip6tables.rules
+	```
 
 1. Install Wekan with the [auto-install script](https://github.com/wekan/wekan-autoinstall/blob/master/autoinstall_wekan.sh):
 
@@ -87,12 +87,12 @@ We are self-hosting [Wekan](https://github.com/wekan/wekan) to coordinate tasks.
 
 1. Redirect unexpected access to website by overwriting `/etc/nginx/sites-available/default` with:
 
-  ```
-  server {
-    server_name .phillymesh.net;
-    return 301 https://phillymesh.net;
-  }
-  ```
+	```
+	server {
+		server_name .phillymesh.net;
+		return 301 https://phillymesh.net;
+	}
+	```
 
 1. Reload nginx `service nginx reload`.
 
@@ -102,14 +102,15 @@ We are self-hosting [Wekan](https://github.com/wekan/wekan) to coordinate tasks.
 
 1. Run the **letsencrypt-auto** script:
 
-        ```
-        # certbot-auto certonly --agree-tos --renew-by-default --email hello@phillymesh.net -a webroot --webroot-path=/usr/share/nginx/html -d wekan.phillymesh.net
-        ```
+	```
+	# certbot-auto certonly --agree-tos --renew-by-default --email hello@phillymesh.net -a webroot --webroot-path=/usr/share/nginx/html -d wekan.phillymesh.net
+	```
 
 1. After the cert is created, generate dhparem.pem if it doesn't exit
-        ```
-        openssl dhparam -out /etc/ssl/certs/dhparam.pem;
-        ```
+
+	```
+	openssl dhparam -out /etc/ssl/certs/dhparam.pem;
+	```
 
 1. Lastly let's change our config to get it SSL forced by editing `/etc/nginx/sites-available/wekan.phillymesh.net` and pasting:
 

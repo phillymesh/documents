@@ -23,9 +23,9 @@ We currently run the Python-implemented [Synapse](https://github.com/matrix-org/
 1. Install the tools:
 
 	```
-	sudo apt-get install build-essential python2.7-dev libffi-dev \
-	                     python-pip python-setuptools sqlite3 \
-	                     libssl-dev python-virtualenv libjpeg-dev libxslt1-dev
+	# sudo apt-get install build-essential python2.7-dev libffi-dev \
+		python-pip python-setuptools sqlite3 \
+		libssl-dev python-virtualenv libjpeg-dev libxslt1-dev
 	```
 
 1. Install Synapse homeserver version [v0.19.3](https://github.com/matrix-org/synapse/releases/tag/v0.19.3):
@@ -98,13 +98,17 @@ We currently run the Python-implemented [Synapse](https://github.com/matrix-org/
 	_matrix._tcp    IN      SRV     10 0 8448 matrix.phillymesh.net.
 	```
 
-1. Open up firewall for federation over port 8448 `iptables -A INPUT -p tcp -m tcp --dport 8448 -j ACCEPT`.
+1. Open up firewall for federation over port 8448 by adding the folowing `iptables` rule:
+
+	```
+	iptables -A INPUT -p tcp -m tcp --dport 8448 -j ACCEPT
+	```
 
 ### Set up HTTPS with nginx and letsencrypt
 
 1. If nginx and letsencrypt aren't already installed on the server, see [our Wekan setup](wekan.md) to configure the basics.
 
-1. Create **/etc/nginx/sites-available/matrix.phillymesh.net**:
+1. Create `/etc/nginx/sites-available/matrix.phillymesh.net` and paste the following inside it:
 
     ```
     server {
@@ -121,30 +125,30 @@ We currently run the Python-implemented [Synapse](https://github.com/matrix-org/
 This is just temportary to appease the let's encrypt gods.
 
 1. Start serving the site by symlinking:
-
-        ```
-        ln -s /etc/nginx/sites-available/matrix.phillymesh.net /etc/nginx/sites-enabled/matrix.phillymesh.net
-        ```
+	
+	```
+	# ln -s /etc/nginx/sites-available/matrix.phillymesh.net /etc/nginx/sites-enabled/matrix.phillymesh.net
+	```
 1. Reload nginx `service nginx reload`.
 
 1. Assuming Diffie-Hellman **.pem** and **crontab** for letsencrypt renewals are already configured, just run:
 
-        ```
-        # certbot-auto certonly --agree-tos --renew-by-default --email hello@phillymesh.net -a webroot --webroot-path=/usr/share/nginx/html -d matrix.phillymesh.net
-        ```
+	```
+	# certbot-auto certonly --agree-tos --renew-by-default --email hello@phillymesh.net -a webroot --webroot-path=/usr/share/nginx/html -d matrix.phillymesh.net
+	```
 
-1. After the cert is created, generate dhparem.pem if it doesn't exit
-        ```
-        openssl dhparam -out /etc/ssl/certs/dhparam.pem;
-        ```
+1. After the cert is created, generate `dhparem.pem` if it doesn't exit
+        
+	```
+	openssl dhparam -out /etc/ssl/certs/dhparam.pem;
+	```
 
 1. Lastly let's change our config to get it SSL forced by editing `/etc/nginx/sites-available/matrix.phillymesh.net` and pasting:
 
-    
-    ```
-    server {
-        listen 80;
-        server_name matrix.phillymesh.net;
+	```
+	server {
+		listen 80;
+		server_name matrix.phillymesh.net;
         return 301 https://$host$request_uri;
 
         location ~ /.well-known {
@@ -211,7 +215,7 @@ This is just temportary to appease the let's encrypt gods.
     }
     ```
 
-1. Reload nginx `service nginx reload`.
+1. Reload nginx with `service nginx reload`.
 
 ### Update Synapse Version (When Needed)
 
@@ -243,36 +247,36 @@ Because we haven't touched the server yet, moving to PostgresSQL is relatively s
 
 1. Enter the console with `psql` and create the database using UTF8 encoding. (When done, exit the console with `\q`)
 
- ```
- CREATE DATABASE synapse
-  ENCODING 'UTF8'
-  LC_COLLATE='C'
-  LC_CTYPE='C'
-  template=template0
-  OWNER synapse_user;
- ```
+	```
+	CREATE DATABASE synapse
+	ENCODING 'UTF8'
+	LC_COLLATE='C'
+	LC_CTYPE='C'
+	template=template0
+	OWNER synapse_user;
+	```
 
 1. Install the client in the virtual env:
  
     ```
-    sudo apt-get install libpq-dev
-    pip install psycopg2
+    # sudo apt-get install libpq-dev
+    # pip install psycopg2
     ```
 
 1. Replace the `database` section in **homeserver.yaml** with:
 
-        ```
-        # Postgres database configuration
-        database:
-            name: psycopg2
-            args:
-                user: synapse_user
-                password: PASSWORD
-                database: synapse
-                host: localhost
-                cp_min: 5
-                cp_max: 10
-        ```
+	```
+	# Postgres database configuration
+	database:
+		name: psycopg2
+		args:
+			user: synapse_user
+			password: PASSWORD
+			database: synapse
+			host: localhost
+			cp_min: 5
+			cp_max: 10
+	```
 
 1. Restart synapse by running `synctl start`.
 
@@ -360,9 +364,9 @@ The web client we host at **chat.phillymesh.net** is running [Riot Web](https://
 
 1. Start serving the site by symlinking:
 
-        ```
-        ln -s /etc/nginx/sites-available/chat.phillymesh.net /etc/nginx/sites-enabled/chat.phillymesh.net
-        ```
+	```
+	# ln -s /etc/nginx/sites-available/chat.phillymesh.net /etc/nginx/sites-enabled/chat.phillymesh.net
+	```
 
 1. Reload nginx `service nginx reload`.
 
@@ -373,13 +377,14 @@ The web client we host at **chat.phillymesh.net** is running [Riot Web](https://
         ```
 
 1. After the cert is created, generate dhparem.pem if it doesn't exit
-        ```
-        openssl dhparam -out /etc/ssl/certs/dhparam.pem;
-        ```
+
+	```
+	# openssl dhparam -out /etc/ssl/certs/dhparam.pem;
+	```
 
 1. Lastly let's change our config to get it SSL forced by editing `/etc/nginx/sites-available/matrix.phillymesh.net` and pasting:
 
-        ```
+	```
 	server {
 	    listen 80;
 	    server_name chat.phillymesh.net;
@@ -446,14 +451,14 @@ The web client we host at **chat.phillymesh.net** is running [Riot Web](https://
 
 1. Reload nginx `service nginx reload`.
 	
-## Create More RAM
+## Create More "RAM"
 
 We are running Synapse on a 1 GB VPS that also runs other services. The process often gets dangerously close to being killed by the kernel from memory exhaustion. So we created 2 GB of swap memory on the SSD to handle load spikes:
 
-```
-# dd if=/dev/zero of=/swapfile bs=1M count=2048
-# chmod 600 /swapfile
-# mkswap /swapfile
-# swapon /swapfile
-# echo '/swapfile none swap defaults 0 0' >> /etc/fstab
-```
+	```
+	# dd if=/dev/zero of=/swapfile bs=1M count=2048
+	# chmod 600 /swapfile
+	# mkswap /swapfile
+	# swapon /swapfile
+	# echo '/swapfile none swap defaults 0 0' >> /etc/fstab
+	```
