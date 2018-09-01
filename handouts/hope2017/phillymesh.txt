@@ -1,0 +1,120 @@
+  /------------------------------------------------------------------------\
+  |            _____  _     _ _ _         __  __           _               |
+  |           |  __ \| |   (_) | |       |  \/  |         | |              |
+  |           | |__) | |__  _| | |_   _  | \  / | ___  ___| |__            |
+  |           |  ___/| '_ \| | | | | | | | |\/| |/ _ \/ __| '_ \           |
+  |           | |    | | | | | | | |_| | | |  | |  __/\__ \ | | |          |
+  |           |_|    |_| |_|_|_|_|\__, | |_|  |_|\___||___/_| |_|          |
+  |                                __/ |                                   |
+  |                               |___/                                    |
+  |                                                                        |
+  \------------------------------------------------------------------------/
+  . phillymesh.net .            |  State of    |            .        2018  .
+  :  ------|-----  |----------  |  The Network |  ----------|  ----|-----  :
+  |----------------|--          \--------------/          --|--------------|
+       ----------------------------------------------------------------     
+
+  Philly Mesh is a community-owned mesh network in the Grester Philadelphia 
+  Area (including Philly’s suburbs, parts of New Jersey, and Delaware). 
+  Philly Mesh is devised of volunteers consisting of networking enthusiasts, 
+  cypherpunks, programmers, and general tinkerers. We aim to use 
+  off-the-shelf hardware and open source-source software to create a robust 
+  network for hobbyists, communities, or those in need of network access.
+
+  Chat with us via Matrix! -- #phillymesh:phillymesh.net
+  Email -- hello@phillymesh.net
+
+  |------------------|----------\______________/--------------|------------|
+  :      |-----|----------------/              \-----------------|---|     :
+  . Network Status . |----------|              |----------| .              .
+
+  The heart of the Philly Mesh network is a software package (or networking 
+  suite, if you’d like to call it) called cjdns. Cjdns handles routing and 
+  addressing through implementing an IPv6 network using public-key cryptog-
+  raphy. Essentially cjdns creates a secure, robust logical network with 
+  privacy in mind. Cjdns doesn’t care what interface you run it on, and will
+  create networks over wireless links, Ethernet, fiber, and even the exist-
+  ing Internet, making it incredibly flexible for many types of deployments. 
+  We are doing most of our experimentation currently with wireless links 
+  over the IEEE 802.11s protocol amendment for wireless mesh networking. 
+  802.11s handles ad hoc network creation and is comparable to similar tools
+  such as batman-adv and OLSR, primarily used by the Friefunk project. With 
+  our software stack, cjdns does the heavy-duty work of secure routing and 
+  addressing (logical), while 802.11s facilitates the wireless (physical) 
+  mesh.
+
+  Many other localized mesh groups (or “meshlocals”) use a similar setup, 
+  and our ultimate goal is interoperability with other groups. While mesh 
+  networks are currently physically contained to certain geographic regions, 
+  we hope to see the distance between them shorten over time. One group we 
+  collaborate with extensively is Toronto Mesh, though there are roughly a 
+  dozen other groups we are in regular contact with.
+
+  Within Philadelphia and the surrounding area, we are recruiting as many 
+  people as possible to set up nodes they can run perpetually at their resi-
+  dence, place of business, or community centers. In these early days of 
+  creating a physical network, those who want to join might not be able to 
+  find other node operators physically close by. Don’t let this be a 
+  deterrent! With cjdns, you can tunnel your mesh traffic over your existing 
+  Internet connection and get full access to the network (a wide mesh net-
+  work known as Hyperboria) while also cementing a location for other mesh 
+  enthusiasts in the greater Philadelphia area to easily connect to. Once 
+  two or more people running nodes are physically close enough to connect 
+  wirelessly, the Internet tunnel connection can be dropped in favor of 
+  wireless links (or added in addition to it, the choice is yours)! While we
+  are called Philly Mesh, we don’t discriminate geographically. We have 
+  members in the city, the suburbs, and surrounding states. Come say hi!
+
+  We are currently looking at ways to expand the network and make network 
+  access easier for an end user. Much of our success has been through dev-
+  elopment of mesh nodes based on the Raspberry Pi, and other low-cost 
+  single board computers like the Orange Pi. Those interested can check out 
+  the prototype-cjdns-pi and mesh-orange projects started by Toronto Mesh. 
+  These projects offer mostly turn-key solutions to set up ad hoc mesh nodes 
+  simply by running a script.
+
+  If any of this interests you, or you'd like to learn more, get in touch!
+
+  |--------------|--------------\______________/--------------|------------|
+  :      |-----|----------------/              \-----------------|---|     :
+  . Next Steps . |--------------|              |--------------| .          .
+
+  There are a lot of things that are being discussed or considered for 
+  improving the network. A sample of them are listed below, in no particular
+  order.
+
+  * Grow the network, get more people setting up nodes and keeping them set 
+    up.
+  * Make connecting to the network easier for less-technical enthusiasts.
+  * Enhance community outreach!
+    + More people representing Philly Mesh at local groups like PLUG, 
+      Philly 2600, Security Shell, and Philly Sec.
+    + Have ambassadors at local universities like Drexel (Are you a member 
+      of the CyberDragons?), Temple (Member of TUSec?), and UPenn (Member of
+      Penn for Privacy?). Do you attend or work at one of these schools and 
+      have interest in organizing a group there?
+    + Have a presence or give a presentation at a local event like BSides 
+      Philly, BSides Delaware, FOSSCON, PumpCon, or CryptoParty.
+    + Have ambassadors at local hackerspaces. Are you a member or organizer 
+      at NextFab, The Hacktory, LocalHost Philly, or Hive76? Getting mesh 
+      nodes set up at these places would be huge.
+  * Devise a wireless backbone. Do you like playing with powerful wireless 
+    radios and creating point-to-point links to buildings around the city? 
+    How about worrying about all the fun stuff like signal strength, 
+    line-of-sight obstruction, or grounding? Do you have access to a rooftop
+    where you can run hardware?
+  * Design the next generation of turn-key nodes. Let’s create packaged 
+    devices that are as easy to use as plugging in and turning on.
+  * Standardize our egress traffic. Cjdns nodes can allow themselves to be 
+    exit-points for Internet traffic to exit the mesh network, but it would 
+    be ideal to not depend on local ISPs to get those done. Do you know of 
+    or have connections to and IXPs (Internet Exchange Points) in the area? 
+    Maybe you operate a datacenter in the area and have bandwidth to spare?
+  * Experiment with other mesh networking technologies. Maybe you’d like the
+    experiment with Hamnet, AltheaMesh, or Libremesh. Not only is it good to 
+    approach mesh networking from other perspectives, but research here 
+    could help with interoperability down the road.
+	
+  .  -----|----  |--------------|              |--------------|  ----|---  .
+  |--------------|--            \--------------/            --|------------|
+         -------------------------------------------------------------- 
